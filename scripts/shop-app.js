@@ -38,12 +38,131 @@ const TYPE_LABELS = {
   tormenta20weapon : 'Arma',
 };
 
+const WEAPON_PROPERTIES = ['propriedades.ada', 'propriedades.agi', 'propriedades.alo', 'propriedades.des', 'propriedades.dupla', 'propriedades.ver', 'propriedades.hib'];
+const WEAPON_PURPOSES = ['corpo-a-corpo', 'corpo-a-corpo-arremesso', 'disparo', 'arremesso'];
+const WEAPON_GRIPS = ['leve', 'uma', 'duas'];
+const WEAPON_PROFICIENCY = ['marcial', 'simples', 'exotica', 'fogo'];
+
+const EQUIPMENT_TYPES = ['escudo', 'leve', 'pesada', 'acessorio', 'ferramenta', 'esoterico'];
+const EQUIPMENT_USAGE = ['equipado2.hand', 'equipado2.body', 'equipado2.both'];
+
+const CONSUMABLE_TYPES = ['ammo', 'scroll', 'alchemy', 'potion', 'material', 'food'];
+
 function typeLabel(type) {
   return TYPE_LABELS[type] ?? type ?? 'Item';
 }
 
 function isConsumableType(type) {
   return (typeLabel(type) || '').toLowerCase() === 'consumível';
+}
+
+function normalizeCodes(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.flatMap(normalizeCodes);
+  }
+  if (typeof value === 'object') {
+    return normalizeCodes(value.value ?? value.id ?? value.key ?? value.codigo ?? value.slug ?? '');
+  }
+  if (typeof value !== 'string') return [];
+  return value
+    .split(/[,;|]/)
+    .flatMap(part => part.trim().toLowerCase().split(/\s+/))
+    .map(part => part.replace(/[^a-z0-9-]/g, ''))
+    .filter(Boolean);
+}
+
+function normalizeText(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value.toLowerCase();
+  if (typeof value === 'object') return normalizeText(value.value ?? value.label ?? value.name ?? '');
+  return String(value).toLowerCase();
+}
+
+function getMainCategoryTag(itemType) {
+  const label = (typeLabel(itemType) || '').toLowerCase();
+  if (label === 'arma') return 'cat:arma';
+  if (label === 'consumível') return 'cat:consumivel';
+  if (label === 'espólio' || itemType === 'loot' || itemType === 'tesouro') return 'cat:tesouro';
+  if (['equipamento', 'armadura', 'ferramenta', 'bolsa / contêiner'].includes(label)) {
+    return 'cat:equipamento';
+  }
+  return null;
+}
+
+function mapWeaponPurpose(value) {
+  const text = normalizeText(value);
+  if (!text) return null;
+  if (text.includes('corpo') && text.includes('arremesso')) return 'corpo-a-corpo-arremesso';
+  if (text.includes('corpo')) return 'corpo-a-corpo';
+  if (text.includes('disparo')) return 'disparo';
+  if (text.includes('arremesso')) return 'arremesso';
+  return WEAPON_PURPOSES.find(code => text.includes(code)) ?? null;
+}
+
+function mapEquipmentType(value) {
+  const text = normalizeText(value);
+  if (!text) return null;
+  if (text.includes('escudo')) return 'escudo';
+  if (text.includes('leve')) return 'leve';
+  if (text.includes('pesada')) return 'pesada';
+  if (text.includes('acess')) return 'acessorio';
+  if (text.includes('ferrament')) return 'ferramenta';
+  if (text.includes('esot')) return 'esoterico';
+  return EQUIPMENT_TYPES.find(code => text.includes(code)) ?? null;
+}
+
+function buildFilterTags(doc) {
+  const tags = new Set();
+  const system = doc.system ?? {};
+  const mainTag = getMainCategoryTag(doc.type);
+  if (mainTag) tags.add(mainTag);
+
+  if (mainTag === 'cat:arma') {
+    const propsRaw = system.propriedades?.value ?? system.propriedades ?? system.properties?.value ?? system.properties ?? [];
+    const propCodes = normalizeCodes(propsRaw).filter(code => WEAPON_PROPERTIES.includes(code));
+    propCodes.forEach(code => tags.add(`prop:${code.split('.').pop()}`));
+
+    if (system.propriedades && typeof system.propriedades === 'object') {
+      WEAPON_PROPERTIES.forEach(code => {
+        const key = code.split('.').pop();
+        if (system.propriedades?.[key]) {
+          tags.add(`prop:${key}`);
+        }
+      });
+    }
+
+    const purpose = mapWeaponPurpose(system.proposito?.value ?? system.proposito);
+    if (purpose) tags.add(`purpose:${purpose}`);
+
+    const gripCodes = normalizeCodes(system.empunhadura?.value ?? system.empunhadura).filter(code => WEAPON_GRIPS.includes(code));
+    gripCodes.forEach(code => tags.add(`grip:${code}`));
+
+    const profCodes = normalizeCodes(system.proficiencia?.value ?? system.proficiencia).filter(code => WEAPON_PROFICIENCY.includes(code));
+    profCodes.forEach(code => tags.add(`prof:${code}`));
+  }
+
+  if (mainTag === 'cat:equipamento') {
+    const equipType = mapEquipmentType(system.tipo?.value ?? system.tipo);
+    if (equipType) tags.add(`equip:${equipType}`);
+
+    const usageType = normalizeText(system.equipado2?.type ?? system.equipado?.type ?? system.equipado);
+    if (['hand', 'body', 'both'].includes(usageType)) {
+      tags.add(`usage:${usageType}`);
+    } else {
+      const usage = normalizeText(system.equipado2?.type ?? system.equipado2 ?? system.equipado?.value ?? system.equipado);
+      const usageCode = EQUIPMENT_USAGE.find(code => usage.includes(code));
+      if (usageCode) tags.add(`usage:${usageCode.split('.').pop()}`);
+    }
+  }
+
+  if (mainTag === 'cat:consumivel') {
+    const consumableType = normalizeText(system.tipo?.value ?? system.tipo);
+    const consumableCode = CONSUMABLE_TYPES.find(code => consumableType.includes(code));
+    if (consumableCode) tags.add(`cons:${consumableCode}`);
+  }
+
+  return Array.from(tags);
 }
 
 /* ── Helpers de moeda ───────────────────────── */
@@ -90,6 +209,9 @@ export class ShopApplication extends Application {
   this._mode       = 'buy';
   this._sellPercent = 50;
   this._affordableOnly = true;
+  this._filterTags = new Set();
+  this._filterMatch = 'any';
+  this._openFilterGroups = new Set();
 
     this._actorUpdateHook = Hooks.on('updateActor', (updatedActor, data) => {
       if (!this.rendered) return;
@@ -170,6 +292,7 @@ export class ShopApplication extends Application {
       mode       : this._mode,
       sellPercent: this._sellPercent,
       affordableOnly: this._affordableOnly,
+      filterMatch: this._filterMatch,
     };
   }
 
@@ -252,6 +375,7 @@ export class ShopApplication extends Application {
     const espacosBase = Number(doc.system?.espacos) || 0;
     const qtd = Number(doc.system?.qtd) || 1;
     const espacos = espacosBase * qtd;
+    const filterTags = buildFilterTags(doc);
     return {
       uuid        : doc.uuid,
       name        : doc.name,
@@ -261,6 +385,7 @@ export class ShopApplication extends Application {
       preco,
       precoDisplay: precoDisplay(preco),
       espacos,
+      filterTags,
       description : doc.system?.description?.value ?? '',
       source      : doc.system?.source ?? '',
     };
@@ -274,6 +399,7 @@ export class ShopApplication extends Application {
       const espacosBase = Number(item.system?.espacos) || 0;
       const espacos = espacosBase * qtd;
       const sellPrice = preco * qtd * percent;
+  const filterTags = buildFilterTags(item);
       return {
         itemId     : item.id,
         uuid       : item.uuid,
@@ -285,6 +411,7 @@ export class ShopApplication extends Application {
         qtd,
         sellPrice,
         espacos,
+        filterTags,
         description: item.system?.description?.value ?? '',
         source     : item.system?.source ?? '',
       };
@@ -352,6 +479,18 @@ export class ShopApplication extends Application {
     }
     if (this._typeFilter !== 'all') {
       list = list.filter(i => i.type === this._typeFilter);
+    }
+
+    if (this._filterTags.size > 0) {
+      const selected = Array.from(this._filterTags);
+      const matchAll = this._filterMatch === 'all';
+      list = list.filter(item => {
+        const tags = item.filterTags ?? [];
+        if (matchAll) {
+          return selected.every(tag => tags.includes(tag));
+        }
+        return selected.some(tag => tags.includes(tag));
+      });
     }
     return list;
   }
@@ -603,6 +742,53 @@ export class ShopApplication extends Application {
     });
 
     sellInput.on('change', () => {
+      this.render();
+    });
+
+    // Filtros avançados
+    html.find('.side-filter-group').each((_, el) => {
+      const key = el.dataset.group;
+      if (!key) return;
+      if (el.open) {
+        this._openFilterGroups.add(key);
+      }
+    });
+
+    html.find('.shop-filter-checkbox').each((_, el) => {
+      el.checked = this._filterTags.has(el.dataset.tag);
+    });
+
+    html.find('.side-filter-group').each((_, el) => {
+      const key = el.dataset.group;
+      if (!key) return;
+      el.open = this._openFilterGroups.has(key);
+    });
+
+    html.find(`input[name="shop-filter-match"][value="${this._filterMatch}"]`).prop('checked', true);
+
+    html.find('.shop-filter-checkbox').on('change', ev => {
+      const tag = ev.currentTarget.dataset.tag;
+      if (!tag) return;
+      if (ev.currentTarget.checked) {
+        this._filterTags.add(tag);
+      } else {
+        this._filterTags.delete(tag);
+      }
+      this.render();
+    });
+
+    html.find('.side-filter-group').on('toggle', ev => {
+      const key = ev.currentTarget.dataset.group;
+      if (!key) return;
+      if (ev.currentTarget.open) {
+        this._openFilterGroups.add(key);
+      } else {
+        this._openFilterGroups.delete(key);
+      }
+    });
+
+    html.find('input[name="shop-filter-match"]').on('change', ev => {
+      this._filterMatch = ev.currentTarget.value;
       this.render();
     });
 

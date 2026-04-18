@@ -94,6 +94,134 @@
   flex-wrap: wrap;
 }
 
+.shop-filters .filter-group {
+  margin-left: 0;
+}
+
+.shop-filters .filter-group:nth-child(2),
+.shop-filters .filter-group:nth-child(3) {
+  margin-left: auto;
+}
+
+.shop-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.shop-side-filters {
+  width: 240px;
+  padding: 12px 10px;
+  background: #101026;
+  border-right: 1px solid #333355;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.shop-side-filters::-webkit-scrollbar { width: 6px; }
+.shop-side-filters::-webkit-scrollbar-track { background: #101026; }
+.shop-side-filters::-webkit-scrollbar-thumb { background: #8b6914; border-radius: 3px; }
+
+.side-filter-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #c8b87a;
+  margin-bottom: 10px;
+}
+
+.side-filter-header i {
+  color: #8b6914;
+}
+
+.side-filter-match {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #2a2a48;
+}
+
+.side-filter-group {
+  border: 1px solid #2b2b44;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #151533;
+  margin-bottom: 8px;
+}
+
+.side-filter-group summary {
+  cursor: pointer;
+  color: #e0d5c0;
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.side-filter-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.side-filter-group summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  color: #8b6914;
+}
+
+.side-filter-group[open] summary::before {
+  content: '▾';
+}
+
+.filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.filter-subgroup {
+  padding: 6px 8px;
+  background: #101028;
+  border-radius: 4px;
+  border: 1px solid #24243c;
+}
+
+.filter-subtitle {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8b6914;
+  margin-bottom: 4px;
+}
+
+.filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #d2c6aa;
+}
+
+.filter-option-inline {
+  margin-left: auto;
+  font-weight: 500;
+}
+
+.filter-hint {
+  font-size: 0.72rem;
+  color: #8f846d;
+}
+
+.filter-option input {
+  accent-color: #8b6914;
+}
+
 .filter-group {
   display: flex;
   align-items: center;

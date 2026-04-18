@@ -7,7 +7,7 @@
     <span class="wealth-coin gold">{{wealth.to}} <abbr title="Tibar de Ouro">TO</abbr></span>
     <span class="wealth-coin silver">{{wealth.tp}} <abbr title="Tibar de Prata">TP</abbr></span>
     <span class="wealth-coin copper">{{wealth.tc}} <abbr title="Tibar de Cobre">TC</abbr></span>
-    <span class="wealth-total">(≈ {{wealth.totalSilver}} TP total)</span>
+    <span class="wealth-total">(= {{wealth.totalSilver}} TP total)</span>
   </div>
 
   {{!-- ── Filtros ── --}}
@@ -29,19 +29,9 @@
     </div>
 
     <div class="filter-group">
-      <label>Tipo</label>
-      <select class="shop-type-filter">
-        <option value="all" {{#if (eq typeFilter "all")}}selected{{/if}}>Todos</option>
-        {{#each types}}
-        <option value="{{value}}" {{#if (eq value ../typeFilter)}}selected{{/if}}>{{label}}</option>
-        {{/each}}
-      </select>
-    </div>
-
-    <div class="filter-group">
       <label>Ordenar</label>
       <select class="shop-sort">
-        <option value="name"       {{#if (eq sortBy "name")}}selected{{/if}}>Nome (A→Z)</option>
+        <option value="name"       {{#if (eq sortBy "name")}}selected{{/if}}>Nome</option>
         <option value="price-asc"  {{#if (eq sortBy "price-asc")}}selected{{/if}}>Preço (menor)</option>
         <option value="price-desc" {{#if (eq sortBy "price-desc")}}selected{{/if}}>Preço (maior)</option>
         <option value="type"       {{#if (eq sortBy "type")}}selected{{/if}}>Tipo</option>
@@ -69,8 +59,130 @@
     <span class="filter-count">{{totalItems}} ite{{#if (eq totalItems 1)}}m{{else}}ns{{/if}}</span>
   </div>
 
-  {{!-- ── Lista de itens ── --}}
-  <div class="shop-items-list">
+  <div class="shop-content">
+    <aside class="shop-side-filters">
+      <div class="side-filter-header">
+        <i class="fas fa-filter"></i>
+        <span>Filtros avançados</span>
+      </div>
+
+      <div class="side-filter-match">
+        <label class="filter-option">
+          <input type="radio" name="shop-filter-match" value="any">
+          <span>Qualquer filtro</span>
+        </label>
+        <label class="filter-option">
+          <input type="radio" name="shop-filter-match" value="all">
+          <span>Todos os filtros</span>
+        </label>
+      </div>
+
+      <details class="side-filter-group" data-group="weapons">
+        <summary>
+          <span>Armas</span>
+          <label class="filter-option filter-option-inline">
+            <input type="checkbox" class="shop-filter-checkbox" data-tag="cat:arma">
+          </label>
+        </summary>
+        <div class="filter-options">
+          <div class="filter-subgroup">
+            <div class="filter-subtitle">Propriedades</div>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prop:ada"><span>Adaptável</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prop:agi"><span>Ágil</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prop:alo"><span>Alongada</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prop:des"><span>Desbalanceada</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prop:dupla"><span>Dupla</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prop:ver"><span>Versátil</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prop:hib"><span>Híbrida</span></label>
+          </div>
+
+          <div class="filter-subgroup">
+            <div class="filter-subtitle">Propósito</div>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="purpose:corpo-a-corpo"><span>Corpo a corpo</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="purpose:corpo-a-corpo-arremesso"><span>Corpo a corpo e arremesso</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="purpose:disparo"><span>Disparo</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="purpose:arremesso"><span>Arremesso</span></label>
+          </div>
+
+          <div class="filter-subgroup">
+            <div class="filter-subtitle">Empunhadura</div>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="grip:leve"><span>Leve</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="grip:uma"><span>Uma mão</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="grip:duas"><span>Duas mãos</span></label>
+          </div>
+
+          <div class="filter-subgroup">
+            <div class="filter-subtitle">Proficiência</div>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prof:marcial"><span>Marcial</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prof:simples"><span>Simples</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prof:exotica"><span>Exótica</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="prof:fogo"><span>Arma de fogo</span></label>
+          </div>
+        </div>
+      </details>
+
+      <details class="side-filter-group" data-group="equipment">
+        <summary>
+          <span>Equipamento</span>
+          <label class="filter-option filter-option-inline">
+            <input type="checkbox" class="shop-filter-checkbox" data-tag="cat:equipamento">
+          </label>
+        </summary>
+        <div class="filter-options">
+          <div class="filter-subgroup">
+            <div class="filter-subtitle">Tipo</div>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="equip:escudo"><span>Escudo</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="equip:leve"><span>Armadura leve</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="equip:pesada"><span>Armadura pesada</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="equip:acessorio"><span>Acessório</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="equip:ferramenta"><span>Ferramenta</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="equip:esoterico"><span>Esotérico</span></label>
+          </div>
+
+          <div class="filter-subgroup">
+            <div class="filter-subtitle">Tipo de uso</div>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="usage:hand"><span>Empunhado</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="usage:body"><span>Vestido</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="usage:both"><span>Ambos</span></label>
+          </div>
+        </div>
+      </details>
+
+      <details class="side-filter-group" data-group="treasure">
+        <summary>
+          <span>Tesouro</span>
+          <label class="filter-option filter-option-inline">
+            <input type="checkbox" class="shop-filter-checkbox" data-tag="cat:tesouro">
+          </label>
+        </summary>
+        <div class="filter-options">
+          <span class="filter-hint">Itens de tesouro/espólio.</span>
+        </div>
+      </details>
+
+      <details class="side-filter-group" data-group="consumables">
+        <summary>
+          <span>Consumíveis</span>
+          <label class="filter-option filter-option-inline">
+            <input type="checkbox" class="shop-filter-checkbox" data-tag="cat:consumivel">
+          </label>
+        </summary>
+        <div class="filter-options">
+          <div class="filter-subgroup">
+            <div class="filter-subtitle">Tipo</div>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="cons:ammo"><span>Munição</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="cons:scroll"><span>Pergaminho</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="cons:alchemy"><span>Alquímico</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="cons:potion"><span>Poção</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="cons:material"><span>Material</span></label>
+            <label class="filter-option"><input type="checkbox" class="shop-filter-checkbox" data-tag="cons:food"><span>Comida</span></label>
+          </div>
+        </div>
+      </details>
+    </aside>
+
+    {{!-- ── Lista de itens ── --}}
+    <div class="shop-items-list">
 
     {{#if loading}}
       <div class="shop-loading">
@@ -142,5 +254,6 @@
       </div>
     {{/if}}
 
-  </div>{{!-- /shop-items-list --}}
+    </div>{{!-- /shop-items-list --}}
+  </div>{{!-- /shop-content --}}
 </div>{{!-- /t20-loja-app --}}
