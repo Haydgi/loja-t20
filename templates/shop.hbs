@@ -1,0 +1,146 @@
+{{!-- templates/shop.hbs — Janela principal da Loja --}}
+<div class="t20-loja-app">
+
+  {{!-- ── Cabeçalho: saldo do personagem ── --}}
+  <div class="shop-wealth-bar">
+    <span class="wealth-label"><i class="fas fa-coins"></i> Saldo de <strong>{{actor.name}}</strong>:</span>
+    <span class="wealth-coin gold">{{wealth.to}} <abbr title="Tibar de Ouro">TO</abbr></span>
+    <span class="wealth-coin silver">{{wealth.tp}} <abbr title="Tibar de Prata">TP</abbr></span>
+    <span class="wealth-coin copper">{{wealth.tc}} <abbr title="Tibar de Cobre">TC</abbr></span>
+    <span class="wealth-total">(≈ {{wealth.totalSilver}} TP total)</span>
+  </div>
+
+  {{!-- ── Filtros ── --}}
+  <div class="shop-filters">
+    <div class="filter-group shop-mode-toggle">
+      <button class="mode-btn {{#if (eq mode "buy")}}active{{/if}}" data-mode="buy" title="Comprar">
+        <i class="fas fa-store"></i>
+        <span>Comprar</span>
+      </button>
+      <button class="mode-btn {{#if (eq mode "sell")}}active{{/if}}" data-mode="sell" title="Vender">
+        <i class="fas fa-hand-holding-usd"></i>
+        <span>Vender</span>
+      </button>
+    </div>
+
+    <div class="filter-group">
+      <i class="fas fa-search"></i>
+      <input type="text" class="shop-search-input" placeholder="Buscar item…" value="{{search}}">
+    </div>
+
+    <div class="filter-group">
+      <label>Tipo</label>
+      <select class="shop-type-filter">
+        <option value="all" {{#if (eq typeFilter "all")}}selected{{/if}}>Todos</option>
+        {{#each types}}
+        <option value="{{value}}" {{#if (eq value ../typeFilter)}}selected{{/if}}>{{label}}</option>
+        {{/each}}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label>Ordenar</label>
+      <select class="shop-sort">
+        <option value="name"       {{#if (eq sortBy "name")}}selected{{/if}}>Nome (A→Z)</option>
+        <option value="price-asc"  {{#if (eq sortBy "price-asc")}}selected{{/if}}>Preço (menor)</option>
+        <option value="price-desc" {{#if (eq sortBy "price-desc")}}selected{{/if}}>Preço (maior)</option>
+        <option value="type"       {{#if (eq sortBy "type")}}selected{{/if}}>Tipo</option>
+      </select>
+    </div>
+
+    {{#if (eq mode "buy")}}
+      <div class="filter-group shop-affordable-toggle">
+        <label class="checkbox">
+          <input type="checkbox" class="shop-affordable-only" {{#if affordableOnly}}checked{{/if}}>
+          <span>Somente itens que posso comprar</span>
+        </label>
+      </div>
+    {{/if}}
+
+    {{#if (eq mode "sell")}}
+      <div class="filter-group sell-percent-group">
+        <label>Venda</label>
+        <input type="range" class="shop-sell-percent" min="1" max="100" step="1" value="{{sellPercent}}">
+        <input type="number" class="shop-sell-percent-input" min="1" max="100" step="1" value="{{sellPercent}}">
+        <span class="sell-percent-label">%</span>
+      </div>
+    {{/if}}
+
+    <span class="filter-count">{{totalItems}} ite{{#if (eq totalItems 1)}}m{{else}}ns{{/if}}</span>
+  </div>
+
+  {{!-- ── Lista de itens ── --}}
+  <div class="shop-items-list">
+
+    {{#if loading}}
+      <div class="shop-loading">
+        <i class="fas fa-spinner fa-spin fa-2x"></i>
+        <p>Carregando itens…</p>
+      </div>
+
+    {{else if items.length}}
+      <table class="shop-table">
+        <thead>
+          <tr>
+            <th class="col-img"></th>
+            <th class="col-name">Item</th>
+            <th class="col-type">Tipo</th>
+            <th class="col-weight">Peso</th>
+            <th class="col-price">{{#if (eq mode "sell")}}Venda{{else}}Preço{{/if}}</th>
+            <th class="col-action"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each items}}
+          <tr class="shop-item-row {{#if (eq ../mode "buy")}}{{#unless canAfford}}cannot-afford{{/unless}}{{/if}}">
+            <td class="col-img">
+              <img class="shop-item-img" src="{{img}}" alt="{{name}}"
+                   data-uuid="{{uuid}}" draggable="true" title="Arrastar para cena/ficha">
+            </td>
+            <td class="col-name">
+              <span class="shop-item-name" title="Clique para abrir o item" data-uuid="{{uuid}}">{{name}}</span>
+              {{#if source}}<span class="item-source">{{source}}</span>{{/if}}
+              {{#if description}}
+              <div class="shop-item-desc hidden">{{{description}}}</div>
+              {{/if}}
+            </td>
+            <td class="col-type"><span class="type-badge">{{typeLabel}}</span></td>
+            <td class="col-weight">{{espacos}} Esp.</td>
+            <td class="col-price">
+              <span class="price-tag {{#if (eq ../mode "buy")}}{{#unless canAfford}}too-expensive{{/unless}}{{/if}}">
+                {{#if (eq ../mode "sell")}}
+                  {{sellPriceDisplay}}
+                {{else}}
+                  {{precoDisplay}}
+                {{/if}}
+              </span>
+            </td>
+            <td class="col-action">
+              {{#if (eq ../mode "sell")}}
+                <button class="btn-sell" data-item-id="{{itemId}}" title="Vender {{name}}">
+                  <i class="fas fa-hand-holding-usd"></i>
+                </button>
+              {{else}}
+                <button class="btn-buy {{#unless canAfford}}disabled{{/unless}}"
+                        data-uuid="{{uuid}}"
+                        {{#unless canAfford}}disabled title="Sem moedas suficientes"{{/unless}}
+                        title="Comprar {{name}}">
+                  <i class="fas fa-shopping-cart"></i>
+                </button>
+              {{/if}}
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+
+    {{else}}
+      <div class="shop-empty">
+        <i class="fas fa-store-slash fa-3x"></i>
+        <p>Nenhum item encontrado{{#if search}} para "<em>{{search}}</em>"{{/if}}.</p>
+        <p class="hint">Verifique os filtros ou configure os compêndios nas Configurações do Módulo.</p>
+      </div>
+    {{/if}}
+
+  </div>{{!-- /shop-items-list --}}
+</div>{{!-- /t20-loja-app --}}

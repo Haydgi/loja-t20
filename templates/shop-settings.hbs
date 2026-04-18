@@ -1,0 +1,89 @@
+{{!-- templates/shop-settings.hbs — Configurações das fontes da loja --}}
+<form class="t20-loja-settings-form">
+
+  <section class="settings-section">
+    <h3><i class="fas fa-book"></i> Compêndios Adicionais</h3>
+    <p class="hint">
+      Selecione compêndios de <strong>Itens</strong> que deseja incluir na loja além dos compêndios padrão do sistema.
+    </p>
+
+    <div class="setting-row add-row">
+      <select id="pack-select" class="pack-select-dropdown">
+        <option value="">— Selecione um compêndio —</option>
+        {{#each availablePacks}}
+        <option value="{{id}}" {{#if selected}}disabled{{/if}}>{{label}}</option>
+        {{/each}}
+      </select>
+      <button type="button" id="btn-add-pack" class="btn-add">
+        <i class="fas fa-plus"></i> Adicionar
+      </button>
+    </div>
+
+    <div class="configured-list">
+      {{#if configuredPacks.length}}
+        {{#each configuredPacks}}
+        <div class="configured-row {{#unless valid}}invalid{{/unless}}">
+          <i class="fas {{#if valid}}fa-box{{else}}fa-exclamation-triangle{{/if}}"></i>
+          <span class="configured-label" title="{{id}}">{{label}}</span>
+          <button type="button" class="btn-remove btn-remove-pack" data-id="{{id}}" title="Remover">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        {{/each}}
+        <button type="button" id="btn-clear-packs" class="btn-clear">
+          <i class="fas fa-trash"></i> Remover todos os compêndios
+        </button>
+      {{else}}
+        <p class="empty-list">Nenhum compêndio adicional configurado.</p>
+      {{/if}}
+    </div>
+  </section>
+
+  <hr>
+
+  <section class="settings-section">
+    <h3><i class="fas fa-tag"></i> Itens Individuais por UUID</h3>
+    <p class="hint">
+      Cole o UUID de um item específico (visível ao segurar <kbd>Alt</kbd> ao clicar num item).
+      Funciona com itens do mundo ou de qualquer compêndio.
+    </p>
+
+    <div class="setting-row add-row">
+      <input type="text" id="item-uuid-input" placeholder="Ex: Compendium.tormenta20.itens.Item.abc123…"
+             class="uuid-input">
+      <button type="button" id="btn-add-item" class="btn-add">
+        <i class="fas fa-plus"></i> Adicionar
+      </button>
+    </div>
+
+    <div class="configured-list">
+      {{#if configuredItems.length}}
+        {{#each configuredItems}}
+        <div class="configured-row {{#unless valid}}invalid{{/unless}}">
+          <i class="fas {{#if valid}}fa-cube{{else}}fa-exclamation-triangle{{/if}}"></i>
+          <span class="configured-label" title="{{uuid}}">
+            {{#if valid}}{{name}}{{else}}⚠ Não encontrado{{/if}}
+            <small class="uuid-preview">{{uuid}}</small>
+          </span>
+          <button type="button" class="btn-remove btn-remove-item" data-uuid="{{uuid}}" title="Remover">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        {{/each}}
+        <button type="button" id="btn-clear-items" class="btn-clear">
+          <i class="fas fa-trash"></i> Remover todos os itens individuais
+        </button>
+      {{else}}
+        <p class="empty-list">Nenhum item individual configurado.</p>
+      {{/if}}
+    </div>
+  </section>
+
+  <div class="settings-footer">
+    <p class="hint"><i class="fas fa-info-circle"></i>
+      As outras opções (incluir compêndios do sistema, itens do mundo, etc.) estão nas
+      <strong>Configurações do Módulo</strong> no menu principal do FoundryVTT.
+    </p>
+  </div>
+
+</form>

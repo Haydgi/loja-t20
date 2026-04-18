@@ -1,0 +1,35 @@
+{
+  "id": "loja-t20",
+  "title": "Tormenta20 - Loja",
+  "description": "Módulo de loja integrado para o sistema Tormenta20. Adiciona um botão na ficha do personagem para abrir uma loja com todos os itens do sistema, compêndios configurados e itens individuais. Automatiza o gasto de moedas (TC, TP, TO) na compra.",
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "11",
+    "verified": "12",
+    "maximum": "13"
+  },
+  "authors": [
+    {
+      "name": "t20-loja"
+    }
+  ],
+  "esmodules": [
+    "scripts/main.js"
+  ],
+  "styles": [
+    "styles/shop.css"
+  ],
+  "languages": [
+    {
+      "lang": "pt-BR",
+      "name": "Português (Brasil)",
+      "path": "lang/pt-BR.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/pt-BR.json"
+    }
+  ],
+  "flags": {}
+}
