@@ -407,19 +407,10 @@ export class ShopApplication extends Application {
 
     // Calcula novo saldo
     const remaining = totalCopper - costCopper;
-    const keepChange = game.settings.get(MODULE_ID, 'keepChange');
     let newTo, newTp, newTc;
 
-    if (keepChange) {
-      // Mantém prata: não converte sobra de prata para ouro
-      newTo = Math.floor(remaining / 100);
-      const rem2 = remaining % 100;
-      newTp = Math.floor(rem2 / 10);
-      newTc = rem2 % 10;
-    } else {
-      // Redistribui tudo normalmente
-      ({ to: newTo, tp: newTp, tc: newTc } = fromCobre(remaining));
-    }
+    // Redistribui tudo normalmente
+    ({ to: newTo, tp: newTp, tc: newTc } = fromCobre(remaining));
 
     // Busca documento original para copiar dados
     let sourceDoc;

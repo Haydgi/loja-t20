@@ -452,6 +452,16 @@ kbd {
   margin-bottom: 8px;
 }
 
+.add-row .uuid-input {
+  flex: 3 1 auto;
+  min-width: 320px;
+}
+
+.add-row .btn-add-uuid {
+  flex: 0 0 auto;
+  min-width: 90px;
+}
+
 .pack-select-dropdown,
 .uuid-input {
   flex: 1;
@@ -464,7 +474,16 @@ kbd {
   font-size: 0.82rem;
 }
 
-.uuid-input { font-family: monospace; font-size: 0.75rem; }
+.uuid-input {
+  font-family: monospace;
+  font-size: 0.75rem;
+  min-width: 0;
+}
+
+.pack-select-dropdown option {
+  background: #1e1e38;
+  color: #e0d5c0;
+}
 
 .btn-add {
   padding: 4px 12px;
@@ -477,6 +496,15 @@ kbd {
   white-space: nowrap;
   font-family: inherit;
   transition: background 0.15s;
+}
+
+.btn-add-uuid {
+  padding: 3px 6px;
+  font-size: 0.74rem;
+  min-height: 24px;
+  line-height: 1;
+  width: 70px;
+  justify-content: center;
 }
 
 .btn-add:hover { background: linear-gradient(135deg, #2e8b2e, #4caf50); }
@@ -512,6 +540,18 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.btn-remove-pack {
+  padding: 2px 4px;
+  font-size: 0.7rem;
+  border-radius: 3px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
 }
 
 .uuid-preview {

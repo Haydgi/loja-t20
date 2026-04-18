@@ -23,10 +23,9 @@
       {{#if configuredPacks.length}}
         {{#each configuredPacks}}
         <div class="configured-row {{#unless valid}}invalid{{/unless}}">
-          <i class="fas {{#if valid}}fa-box{{else}}fa-exclamation-triangle{{/if}}"></i>
           <span class="configured-label" title="{{id}}">{{label}}</span>
           <button type="button" class="btn-remove btn-remove-pack" data-id="{{id}}" title="Remover">
-            <i class="fas fa-times"></i>
+            <i class="fas fa-trash"></i>
           </button>
         </div>
         {{/each}}
@@ -51,7 +50,7 @@
     <div class="setting-row add-row">
       <input type="text" id="item-uuid-input" placeholder="Ex: Compendium.tormenta20.itens.Item.abc123…"
              class="uuid-input">
-      <button type="button" id="btn-add-item" class="btn-add">
+      <button type="button" id="btn-add-item" class="btn-add btn-add-uuid">
         <i class="fas fa-plus"></i> Adicionar
       </button>
     </div>

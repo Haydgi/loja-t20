@@ -11,9 +11,7 @@
       "IncludeSystem": "Incluir Compêndios do Sistema",
       "IncludeSystemHint": "Inclui automaticamente todos os compêndios de itens do sistema Tormenta20.",
       "IncludeWorld": "Incluir Itens do Mundo",
-      "IncludeWorldHint": "Inclui itens cadastrados no mundo (sidebar > Itens).",
-      "KeepChange": "Manter Troco em Prata",
-      "KeepChangeHint": "Mantém o troco em moedas de prata em vez de converter para cobre."
+  "IncludeWorldHint": "Inclui itens cadastrados no mundo (sidebar > Itens)."
     },
     "Buy": "Comprar",
     "Reload": "Recarregar itens",

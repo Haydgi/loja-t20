@@ -54,16 +54,6 @@ Hooks.once('init', () => {
     default: true
   });
 
-  // Moeda preferida para troco (ao redistribuir após compra)
-  game.settings.register(MODULE_ID, 'keepChange', {
-    name: 'Manter Troco em Prata',
-    hint: 'Ao comprar, mantém o troco em moedas de prata em vez de converter para cobre.',
-    scope: 'world',
-    config: true,
-    type: Boolean,
-    default: true
-  });
-
   // Menu de configurações avançadas (compêndios e itens individuais)
   game.settings.registerMenu(MODULE_ID, 'shopSettingsMenu', {
     name: 'Configurar Fontes da Loja',
