@@ -52,8 +52,11 @@ function typeLabel(type) {
   return TYPE_LABELS[type] ?? type ?? 'Item';
 }
 
-function isConsumableType(type) {
-  return (typeLabel(type) || '').toLowerCase() === 'consumível';
+function isConsumableType(type, system = {}) {
+  const label = (typeLabel(type) || '').toLowerCase();
+  if (label === 'consumível') return true;
+  const systemType = normalizeText(system.tipo?.value ?? system.tipo);
+  return CONSUMABLE_TYPES.some(code => systemType.includes(code));
 }
 
 function normalizeCodes(value) {
@@ -163,6 +166,11 @@ function buildFilterTags(doc) {
   }
 
   return Array.from(tags);
+}
+
+function getChatRecipients() {
+  if (!game.settings.get(MODULE_ID, 'whisperChatMessages')) return null;
+  return game.users.filter(user => user.isGM).map(user => user.id);
 }
 
 /* ── Helpers de moeda ───────────────────────── */
@@ -522,7 +530,7 @@ export class ShopApplication extends Application {
     if (!shopItem) return ui.notifications.error('Item não encontrado na loja.');
 
     let qty = 1;
-  if (isConsumableType(shopItem.type)) {
+  if (isConsumableType(shopItem.type, shopItem.system ?? {})) {
       const chosen = await this._promptQuantity({
         title: `Comprar ${shopItem.name}`,
         unitPrice: shopItem.preco,
@@ -598,10 +606,13 @@ export class ShopApplication extends Application {
       </div>
     `;
 
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-      content: messageContent,
-    });
+    if (game.settings.get(MODULE_ID, 'enableChatMessages')) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+        content: messageContent,
+        whisper: getChatRecipients(),
+      });
+    }
 
     this.render();
   }
@@ -615,7 +626,7 @@ export class ShopApplication extends Application {
     const percent = this._sellPercent / 100;
 
     let sellQty = qtd;
-  if (isConsumableType(item.type)) {
+  if (isConsumableType(item.type, item.system ?? {})) {
       const chosen = await this._promptQuantity({
         title: `Vender ${item.name}`,
         unitPrice: preco,
@@ -659,10 +670,13 @@ export class ShopApplication extends Application {
       </div>
     `;
 
-    await ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-      content: messageContent,
-    });
+    if (game.settings.get(MODULE_ID, 'enableChatMessages')) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+        content: messageContent,
+        whisper: getChatRecipients(),
+      });
+    }
 
     this.render();
   }

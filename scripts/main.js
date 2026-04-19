@@ -54,6 +54,44 @@ Hooks.once('init', () => {
     default: true
   });
 
+  // Mensagens de compra/venda no chat
+  game.settings.register(MODULE_ID, 'enableChatMessages', {
+    name: 'Enviar mensagem no chat ao comprar/vender',
+    hint: 'Quando habilitado, envia mensagem no chat para compras e vendas.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+  // Mensagem apenas para o mestre (whisper)
+  game.settings.register(MODULE_ID, 'whisperChatMessages', {
+    name: 'Enviar mensagem no chat apenas para o mestre',
+    hint: 'Quando habilitado, envia as mensagens de compra/venda apenas como whisper para mestres.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
+  game.settings.register(MODULE_ID, 'monitorPlayerMoneyChanges', {
+    name: 'Monitorar mudanças de moedas feitas por jogadores',
+    hint: 'Quando habilitado, registra no chat mudanças manuais de moedas feitas por jogadores (mestres e macros não disparam).',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
+  game.settings.register(MODULE_ID, 'monitorAllMoneyChanges', {
+    name: 'Monitorar mudanças de moedas em todos os casos',
+    hint: 'Quando habilitado, registra no chat mudanças de moedas mesmo quando mestres ou macros alteram o dinheiro.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
   // Menu de configurações avançadas (compêndios e itens individuais)
   game.settings.registerMenu(MODULE_ID, 'shopSettingsMenu', {
     name: 'Configurar Fontes da Loja',
@@ -101,4 +139,61 @@ Hooks.on('renderActorSheet', (app, html, _data) => {
 
   // Insere antes do botão de fechar
   html.closest('.app').find('.window-header .close').before(btn);
+});
+
+const moneySnapshots = new Map();
+
+function formatCoins(data) {
+  return `${data.to || 0} TO | ${data.tp || 0} TP | ${data.tc || 0} TC`;
+}
+
+function formatDelta(delta) {
+  const sign = value => (value >= 0 ? `+${value}` : `${value}`);
+  return `${sign(delta.to)} TO | ${sign(delta.tp)} TP | ${sign(delta.tc)} TC`;
+}
+
+Hooks.on('preUpdateActor', (actor, data) => {
+  if (!data?.system?.dinheiro) return;
+  moneySnapshots.set(actor.id, foundry.utils.deepClone(actor.system?.dinheiro ?? {}));
+});
+
+Hooks.on('updateActor', (actor, data, _options, userId) => {
+  if (!data?.system?.dinheiro) return;
+
+  const monitorAll = game.settings.get(MODULE_ID, 'monitorAllMoneyChanges');
+  const monitorPlayers = game.settings.get(MODULE_ID, 'monitorPlayerMoneyChanges');
+  if (!monitorAll && !monitorPlayers) return;
+
+  const user = game.users.get(userId);
+  if (!monitorAll && user?.isGM) return;
+
+  const previous = moneySnapshots.get(actor.id);
+  moneySnapshots.delete(actor.id);
+  if (!previous) return;
+
+  const current = actor.system?.dinheiro ?? {};
+  const delta = {
+    to: (current.to || 0) - (previous.to || 0),
+    tp: (current.tp || 0) - (previous.tp || 0),
+    tc: (current.tc || 0) - (previous.tc || 0),
+  };
+
+  if (delta.to === 0 && delta.tp === 0 && delta.tc === 0) return;
+
+  const messageContent = `
+    <div class="t20-loja-message">
+      <p><strong>${actor.name}</strong> alterou moedas:</p>
+      <ul>
+        <li><strong>Antes:</strong> ${formatCoins(previous)}</li>
+        <li><strong>Alteração:</strong> ${formatDelta(delta)}</li>
+        <li><strong>Novo saldo:</strong> ${formatCoins(current)}</li>
+      </ul>
+    </div>
+  `;
+
+  ChatMessage.create({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    content: messageContent,
+    whisper: game.users.filter(user => user.isGM).map(user => user.id),
+  });
 });
