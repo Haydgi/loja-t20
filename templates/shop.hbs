@@ -8,6 +8,9 @@
     <span class="wealth-coin silver">{{wealth.tp}} <abbr title="Tibar de Prata">TP</abbr></span>
     <span class="wealth-coin copper">{{wealth.tc}} <abbr title="Tibar de Cobre">TC</abbr></span>
     <span class="wealth-total">(= {{wealth.totalSilver}} TP total)</span>
+    <button type="button" class="btn-open-cart" title="Abrir carrinho">
+      <i class="fas fa-shopping-cart"></i>
+    </button>
   </div>
 
   {{!-- ── Filtros ── --}}
@@ -56,6 +59,7 @@
       </div>
     {{/if}}
 
+
     <span class="filter-count">{{totalItems}} ite{{#if (eq totalItems 1)}}m{{else}}ns{{/if}}</span>
   </div>
 
@@ -64,6 +68,9 @@
       <div class="side-filter-header">
         <i class="fas fa-filter"></i>
         <span>Filtros avançados</span>
+        <button type="button" class="btn-filter-reset" title="Limpar filtros">
+          <i class="fas fa-eraser"></i>
+        </button>
       </div>
 
       <div class="side-filter-match">
@@ -233,12 +240,17 @@
                   <i class="fas fa-hand-holding-usd"></i>
                 </button>
               {{else}}
-                <button class="btn-buy {{#unless canAfford}}disabled{{/unless}}"
-                        data-uuid="{{uuid}}"
-                        {{#unless canAfford}}disabled title="Sem moedas suficientes"{{/unless}}
-                        title="Comprar {{name}}">
-                  <i class="fas fa-shopping-cart"></i>
-                </button>
+                <div class="buy-actions">
+                  <button class="btn-buy btn-buy-small {{#unless canAfford}}disabled{{/unless}}"
+                          data-uuid="{{uuid}}"
+                          {{#unless canAfford}}disabled title="Sem moedas suficientes"{{/unless}}
+                          title="Comprar {{name}}">
+                    <i class="fas fa-coins"></i>
+                  </button>
+                  <button class="btn-cart" data-uuid="{{uuid}}" title="Adicionar ao carrinho">
+                    <i class="fas fa-cart-plus"></i>
+                  </button>
+                </div>
               {{/if}}
             </td>
           </tr>

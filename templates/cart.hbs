@@ -1,0 +1,61 @@
+{{!-- templates/cart.hbs — Carrinho de compras --}}
+<div class="t20-loja-cart">
+  <div class="cart-header">
+    <span><i class="fas fa-shopping-cart"></i> Carrinho</span>
+    <div class="cart-discount">
+      <label>Preço</label>
+      <input type="range" class="cart-discount-range" min="1" max="200" step="1" value="{{discountPercent}}">
+      <input type="number" class="cart-discount-input" min="1" max="200" step="1" value="{{discountPercent}}">
+      <span class="cart-discount-label">%</span>
+    </div>
+  </div>
+
+  <div class="cart-items-list">
+    {{#if hasItems}}
+      <table class="cart-table">
+        <thead>
+          <tr>
+            <th class="col-img"></th>
+            <th class="col-name">Item</th>
+            <th class="col-qty">Qtd</th>
+            <th class="col-price">Subtotal</th>
+            <th class="col-action"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each items}}
+          <tr class="cart-item-row">
+            <td class="col-img"><img class="shop-item-img" src="{{img}}" alt="{{name}}"></td>
+            <td class="col-name">{{name}}</td>
+            <td class="col-qty">
+              <input type="number" class="cart-qty-input" data-uuid="{{uuid}}" min="1" value="{{qty}}">
+            </td>
+            <td class="col-price">{{lineDisplay}}</td>
+            <td class="col-action">
+              <button class="btn-remove-cart-item" data-uuid="{{uuid}}" title="Remover">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    {{else}}
+      <div class="shop-empty">
+        <i class="fas fa-cart-arrow-down fa-3x"></i>
+        <p>Carrinho vazio.</p>
+      </div>
+    {{/if}}
+  </div>
+
+  <div class="cart-footer">
+    <div class="cart-total">
+      <span>Total:</span>
+      <strong>{{totalDisplay}}</strong>
+    </div>
+    <div class="cart-actions">
+      <button class="btn-clear-cart" type="button"><i class="fas fa-trash"></i> Limpar</button>
+      <button class="btn-checkout-cart" type="button"><i class="fas fa-check"></i> Finalizar compra</button>
+    </div>
+  </div>
+</div>

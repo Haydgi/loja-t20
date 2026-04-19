@@ -173,6 +173,22 @@ function getChatRecipients() {
   return game.users.filter(user => user.isGM).map(user => user.id);
 }
 
+function calculateCartTotals(items, percent = 100) {
+  const multiplier = percent / 100;
+  const lines = items.map(item => {
+    const unit = item.preco;
+    const total = unit * item.qty * multiplier;
+    return {
+      ...item,
+      lineTotal: total,
+      lineDisplay: precoDisplay(total),
+      unitDisplay: precoDisplay(unit),
+    };
+  });
+  const total = lines.reduce((sum, item) => sum + item.lineTotal, 0);
+  return { lines, total, totalDisplay: precoDisplay(total) };
+}
+
 /* ── Helpers de moeda ───────────────────────── */
 
 /** Converte (TO, TP, TC) → inteiro em cobre (base 1). */
@@ -220,6 +236,9 @@ export class ShopApplication extends Application {
   this._filterTags = new Set();
   this._filterMatch = 'any';
   this._openFilterGroups = new Set();
+  this._sideFilterScroll = 0;
+  this._cartItems = new Map();
+  this._cartApp = null;
 
     this._actorUpdateHook = Hooks.on('updateActor', (updatedActor, data) => {
       if (!this.rendered) return;
@@ -681,6 +700,46 @@ export class ShopApplication extends Application {
     this.render();
   }
 
+  async _addToCart(uuid) {
+    const shopItem = this._allItems.find(i => i.uuid === uuid);
+    if (!shopItem) return ui.notifications.error('Item não encontrado na loja.');
+
+    let qty = 1;
+    if (isConsumableType(shopItem.type, shopItem.system ?? {})) {
+      const chosen = await this._promptQuantity({
+        title: `Adicionar ${shopItem.name} ao carrinho`,
+        unitPrice: shopItem.preco,
+        max: 999,
+        percent: 1,
+        label: 'Selecione a quantidade para o carrinho.',
+      });
+      if (!chosen) return;
+      qty = chosen;
+    }
+
+    const existing = this._cartItems.get(uuid);
+    if (existing) {
+      existing.qty += qty;
+    } else {
+      this._cartItems.set(uuid, {
+        uuid,
+        name: shopItem.name,
+        img: shopItem.img,
+        preco: shopItem.preco,
+        qty,
+      });
+    }
+
+    this._openCart();
+  }
+
+  _openCart() {
+    if (!this._cartApp || this._cartApp._closed) {
+      this._cartApp = new CartApplication(this);
+    }
+    this._cartApp.render(true);
+  }
+
   /* ── Listeners ──────────────────────────────── */
   activateListeners(html) {
     super.activateListeners(html);
@@ -717,6 +776,12 @@ export class ShopApplication extends Application {
     html.find('.btn-buy').on('click', ev => {
       const uuid = ev.currentTarget.dataset.uuid;
       this._purchaseItem(uuid);
+    });
+
+    // Botão Carrinho
+    html.find('.btn-cart').on('click', ev => {
+      const uuid = ev.currentTarget.dataset.uuid;
+      this._addToCart(uuid);
     });
 
     // Botão Vender
@@ -760,6 +825,15 @@ export class ShopApplication extends Application {
     });
 
     // Filtros avançados
+    const sideFilters = html.find('.shop-side-filters');
+    if (sideFilters.length) {
+      requestAnimationFrame(() => {
+        sideFilters.scrollTop(this._sideFilterScroll || 0);
+      });
+      sideFilters.on('scroll', () => {
+        this._sideFilterScroll = sideFilters.scrollTop();
+      });
+    }
     html.find('.side-filter-group').each((_, el) => {
       const key = el.dataset.group;
       if (!key) return;
@@ -788,7 +862,22 @@ export class ShopApplication extends Application {
       } else {
         this._filterTags.delete(tag);
       }
+      if (sideFilters.length) {
+        this._sideFilterScroll = sideFilters.scrollTop();
+      }
       this.render();
+    });
+
+    html.find('.btn-filter-reset').on('click', () => {
+      this._filterTags.clear();
+      this._filterMatch = 'any';
+      this._search = '';
+      this._typeFilter = 'all';
+      this.render();
+    });
+
+    html.find('.btn-open-cart').on('click', () => {
+      this._openCart();
     });
 
     html.find('.side-filter-group').on('toggle', ev => {
@@ -803,6 +892,9 @@ export class ShopApplication extends Application {
 
     html.find('input[name="shop-filter-match"]').on('change', ev => {
       this._filterMatch = ev.currentTarget.value;
+      if (sideFilters.length) {
+        this._sideFilterScroll = sideFilters.scrollTop();
+      }
       this.render();
     });
 
@@ -827,5 +919,173 @@ export class ShopApplication extends Application {
       const uuid = ev.currentTarget.dataset.uuid;
       ev.originalEvent.dataTransfer.setData('text/plain', JSON.stringify({ type: 'Item', uuid }));
     });
+  }
+}
+
+class CartApplication extends Application {
+  constructor(shopApp, options = {}) {
+    super(options);
+    this.shopApp = shopApp;
+    this._discountPercent = 100;
+    this._closed = false;
+  }
+
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, {
+      id: `t20-loja-cart-${foundry.utils.randomID(4)}`,
+      title: 'Carrinho de compras',
+      template: `modules/loja-t20/templates/cart.hbs`,
+      width: 520,
+      height: 520,
+      resizable: true,
+      classes: ['t20-loja-window', 't20-loja-cart-window'],
+      scrollY: ['.cart-items-list'],
+    });
+  }
+
+  async getData() {
+    const items = Array.from(this.shopApp._cartItems.values());
+    const totals = calculateCartTotals(items, this._discountPercent);
+    return {
+      actor: this.shopApp.actor,
+      items: totals.lines,
+      totalDisplay: totals.totalDisplay,
+      discountPercent: this._discountPercent,
+      hasItems: items.length > 0,
+    };
+  }
+
+  close(options = {}) {
+    this._closed = true;
+    return super.close(options);
+  }
+
+  activateListeners(html) {
+    super.activateListeners(html);
+
+    html.find('.btn-remove-cart-item').on('click', ev => {
+      const uuid = ev.currentTarget.dataset.uuid;
+      if (!uuid) return;
+      this.shopApp._cartItems.delete(uuid);
+      this.render();
+    });
+
+    html.find('.cart-qty-input').on('input', ev => {
+      const uuid = ev.currentTarget.dataset.uuid;
+      const item = this.shopApp._cartItems.get(uuid);
+      if (!item) return;
+      const value = Math.max(1, Number(ev.currentTarget.value) || 1);
+      item.qty = value;
+      ev.currentTarget.value = value;
+      this.render();
+    });
+
+    html.find('.btn-clear-cart').on('click', () => {
+      this.shopApp._cartItems.clear();
+      this.render();
+    });
+
+    const discountRange = html.find('.cart-discount-range');
+    const discountInput = html.find('.cart-discount-input');
+    const applyDiscount = value => {
+      const clamped = Math.min(200, Math.max(1, Number(value) || 1));
+      this._discountPercent = clamped;
+      discountRange.val(clamped);
+      discountInput.val(clamped);
+    };
+
+    discountRange.on('input', ev => {
+      applyDiscount(ev.currentTarget.value);
+      this.render();
+    });
+
+    discountInput.on('input', ev => {
+      applyDiscount(ev.currentTarget.value);
+      this.render();
+    });
+
+    html.find('.btn-checkout-cart').on('click', () => {
+      this._checkout();
+    });
+  }
+
+  async _checkout() {
+    const items = Array.from(this.shopApp._cartItems.values());
+    if (!items.length) return;
+
+    const { total } = calculateCartTotals(items, this._discountPercent);
+    const wealth = this.shopApp._wealthInfo();
+    const totalCopper = toCobre(wealth.to, wealth.tp, wealth.tc);
+    const costCopper = Math.round(total * 10);
+
+    if (totalCopper < costCopper) {
+      return ui.notifications.warn('Moedas insuficientes para finalizar a compra.');
+    }
+
+    const remaining = totalCopper - costCopper;
+    const { to: newTo, tp: newTp, tc: newTc } = fromCobre(remaining);
+
+    const purchasedLines = [];
+
+    for (const item of items) {
+      let sourceDoc;
+      try {
+        sourceDoc = await fromUuid(item.uuid);
+      } catch (e) {
+        console.warn(`${MODULE_ID} | Não foi possível carregar item ${item.uuid}`, e);
+        continue;
+      }
+      if (!sourceDoc) continue;
+
+      const existing = this.shopApp.actor.items.find(i => {
+        const flag = i.getFlag(MODULE_ID, 'sourceUuid');
+        return flag === item.uuid || i.name === sourceDoc.name;
+      });
+
+      if (existing && existing.system?.qtd !== undefined) {
+        await existing.update({ 'system.qtd': (existing.system.qtd || 1) + item.qty });
+      } else {
+        const itemData = sourceDoc.toObject();
+        itemData.system.qtd = item.qty;
+        const [created] = await this.shopApp.actor.createEmbeddedDocuments('Item', [itemData]);
+        if (created) await created.setFlag(MODULE_ID, 'sourceUuid', item.uuid);
+      }
+
+      purchasedLines.push({
+        name: item.name,
+        qty: item.qty,
+        paid: precoDisplay(item.preco * item.qty * (this._discountPercent / 100)),
+      });
+    }
+
+    await this.shopApp.actor.update({
+      'system.dinheiro.to': newTo,
+      'system.dinheiro.tp': newTp,
+      'system.dinheiro.tc': newTc,
+    });
+
+    if (game.settings.get(MODULE_ID, 'enableChatMessages')) {
+      const messageContent = `
+        <div class="t20-loja-message">
+          <p><strong>${this.shopApp.actor.name}</strong> comprou:</p>
+          <ul>
+            ${purchasedLines.map(line => `<li><strong>${line.name}</strong> x${line.qty} — ${line.paid}</li>`).join('')}
+            <li><strong>Desconto/Acréscimo:</strong> ${this._discountPercent}%</li>
+            <li><strong>Total:</strong> ${precoDisplay(total)}</li>
+            <li><strong>Saldo final:</strong> ${newTo} TO | ${newTp} TP | ${newTc} TC</li>
+          </ul>
+        </div>
+      `;
+
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this.shopApp.actor }),
+        content: messageContent,
+        whisper: getChatRecipients(),
+      });
+    }
+
+    this.shopApp._cartItems.clear();
+    this.shopApp.render();
+    this.render();
   }
 }
