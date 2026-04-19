@@ -47,11 +47,23 @@ templates/
 - Mensagens no chat com item, quantidade, preço e saldo final.
 - Mensagens podem ser silenciadas por configuração.
 - Mensagens podem ser enviadas como whisper para o mestre.
-- Venda de consumíveis com seleção de quantidade.
+- Venda com seleção de quantidade para itens com quantidade > 1.
 - Compra de consumíveis com seleção de quantidade.
 
 **Manutenção:**
 - `ShopApplication._purchaseItem` e `ShopApplication._sellItem` em `scripts/shop-app.js`.
+
+### Carrinho de compras
+
+- Botão **Carrinho** na lista de itens e botão **Abrir carrinho** no topo.
+- Itens podem ser adicionados com quantidade e editados no carrinho.
+- Desconto/acréscimo ajustável (1–200%) via slider e input numérico.
+- Checkout aplica descontos, remove itens comprados e registra no chat.
+
+**Manutenção:**
+- `CartApplication` e `ShopApplication._addToCart` em `scripts/shop-app.js`.
+- UI do carrinho: `templates/cart.hbs`.
+- Estilos do carrinho: `styles/shop.css`.
 
 ### Filtros avançados
 
@@ -98,6 +110,13 @@ templates/
 **Manutenção:**
 - Hooks `preUpdateActor` e `updateActor` em `scripts/main.js`.
 
+### Ajustes recentes de UX/bugs
+
+- Barra de busca mantém foco mesmo quando esvaziada.
+- Busca ignora acentos (diacríticos) em nomes e tipos.
+- Slider de desconto do carrinho é contínuo (sem travar ao arrastar).
+- Input de quantidade no carrinho não perde foco ao digitar.
+
 ## Como usar agentes de código com eficiência
 
 ### 1) Sempre indique o arquivo alvo
@@ -138,7 +157,6 @@ Exemplo: “A janela abre, mas o checkbox não marca”.
 
 ## Próximos passos (opcionais)
 
-- Adicionar botão **“Limpar filtros”**.
 - Salvar filtros por usuário (persistência local).
 - Criar README.md com instruções para jogadores.
 

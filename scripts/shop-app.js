@@ -77,9 +77,17 @@ function normalizeCodes(value) {
 
 function normalizeText(value) {
   if (!value) return '';
-  if (typeof value === 'string') return value.toLowerCase();
+  if (typeof value === 'string') {
+    return value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase();
+  }
   if (typeof value === 'object') return normalizeText(value.value ?? value.label ?? value.name ?? '');
-  return String(value).toLowerCase();
+  return String(value)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
 }
 
 function getMainCategoryTag(itemType) {
@@ -228,17 +236,18 @@ export class ShopApplication extends Application {
     this._loading    = false;
     /** Estado de filtros */
     this._search     = '';
+  this._searchFocused = false;
     this._typeFilter = 'all';
     this._sortBy     = 'name';
-  this._mode       = 'buy';
-  this._sellPercent = 50;
-  this._affordableOnly = true;
-  this._filterTags = new Set();
-  this._filterMatch = 'any';
-  this._openFilterGroups = new Set();
-  this._sideFilterScroll = 0;
-  this._cartItems = new Map();
-  this._cartApp = null;
+    this._mode       = 'buy';
+    this._sellPercent = 50;
+    this._affordableOnly = true;
+    this._filterTags = new Set();
+    this._filterMatch = 'any';
+    this._openFilterGroups = new Set();
+    this._sideFilterScroll = 0;
+    this._cartItems = new Map();
+    this._cartApp = null;
 
     this._actorUpdateHook = Hooks.on('updateActor', (updatedActor, data) => {
       if (!this.rendered) return;
@@ -277,7 +286,7 @@ export class ShopApplication extends Application {
       await this._loadAllItems();
     }
 
-  const filtered  = this._applyFilters(this._allItems);
+    const filtered  = this._applyFilters(this._allItems);
   const sorted    = this._applySort(filtered);
     const sellItemsRaw = this._getSellItems();
     const sellFiltered = this._applyFilters(sellItemsRaw);
@@ -498,10 +507,10 @@ export class ShopApplication extends Application {
   _applyFilters(items) {
     let list = items;
     if (this._search) {
-      const q = this._search.toLowerCase();
+      const q = normalizeText(this._search);
       list = list.filter(i =>
-        i.name.toLowerCase().includes(q) ||
-        i.typeLabel.toLowerCase().includes(q)
+        normalizeText(i.name).includes(q) ||
+        normalizeText(i.typeLabel).includes(q)
       );
     }
     if (this._typeFilter !== 'all') {
@@ -645,7 +654,7 @@ export class ShopApplication extends Application {
     const percent = this._sellPercent / 100;
 
     let sellQty = qtd;
-  if (isConsumableType(item.type, item.system ?? {})) {
+    if (qtd > 1) {
       const chosen = await this._promptQuantity({
         title: `Vender ${item.name}`,
         unitPrice: preco,
@@ -745,14 +754,22 @@ export class ShopApplication extends Application {
     super.activateListeners(html);
 
     // Pesquisa
-    html.find('.shop-search-input').on('input', ev => {
+    const searchInputEl = html.find('.shop-search-input');
+    searchInputEl.on('focus', () => {
+      this._searchFocused = true;
+    });
+    searchInputEl.on('blur', () => {
+      this._searchFocused = false;
+    });
+    searchInputEl.on('input', ev => {
       this._search = ev.currentTarget.value;
+      this._searchFocused = true;
       this.render();
     });
 
     // Devolve o foco à barra de pesquisa após o render
-    if (html.find('.shop-search-input').length > 0 && this._search) {
-      const searchInput = html.find('.shop-search-input')[0];
+    if (searchInputEl.length > 0 && this._searchFocused) {
+      const searchInput = searchInputEl[0];
       searchInput.focus();
       // Coloca o cursor no final do texto
       const val = searchInput.value;
@@ -977,6 +994,9 @@ class CartApplication extends Application {
       const value = Math.max(1, Number(ev.currentTarget.value) || 1);
       item.qty = value;
       ev.currentTarget.value = value;
+    });
+
+    html.find('.cart-qty-input').on('change', () => {
       this.render();
     });
 
@@ -996,11 +1016,17 @@ class CartApplication extends Application {
 
     discountRange.on('input', ev => {
       applyDiscount(ev.currentTarget.value);
+    });
+
+    discountRange.on('change', () => {
       this.render();
     });
 
     discountInput.on('input', ev => {
       applyDiscount(ev.currentTarget.value);
+    });
+
+    discountInput.on('change', () => {
       this.render();
     });
 
