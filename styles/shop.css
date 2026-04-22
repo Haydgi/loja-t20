@@ -25,6 +25,7 @@
 }
 
 /* ── Janela da Loja ──────────────────────────────────────── */
+
 .t20-loja-window .window-content {
   padding: 0;
   overflow: hidden;
@@ -345,7 +346,8 @@
 }
 
 .btn-filter-reset,
-.btn-open-cart {
+.btn-open-cart,
+.btn-open-upgrade {
   padding: 4px 6px;
   min-width: 30px;
   border-radius: 4px;
@@ -369,6 +371,18 @@
   background: linear-gradient(135deg, #114a7a, #2b7fd1);
   border-color: #5aa1e6;
   color: #e6f2ff;
+  width: 44px;
+  height: 30px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-open-upgrade {
+  background: linear-gradient(135deg, #5a3e00, #8b6914);
+  border-color: #c8a030;
+  color: #fff8e7;
   width: 44px;
   height: 30px;
   padding: 0 8px;
@@ -433,10 +447,10 @@
 
 .col-img     { width: 38px; }
 .col-name    { width: auto; }
-.col-type    { width: 100px; }
-.col-weight  { width: 80px; text-align: center; }
-.col-price   { width: 100px; text-align: right; }
-.col-action  { width: 100px; text-align: center; }
+.col-type    { width: 80px; }
+.col-weight  { width: 70px; text-align: center; }
+.col-price   { width: 90px; text-align: right; }
+.col-action  { width: 140px; text-align: center; }
 
 /* ── Linhas da tabela ───────────────────────────────────── */
 .shop-item-row {
@@ -586,8 +600,86 @@
   transform: translateY(0);
 }
 
+.btn-craft {
+  padding: 5px 5px;
+  min-width: 37px;
+  background: linear-gradient(135deg, #6f5130, #b08b5a);
+  border: 1px solid #d1b07a;
+  color: #fff6e2;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: inherit;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.btn-craft:hover {
+  background: linear-gradient(135deg, #b08b5a, #d1b07a);
+  transform: translateY(-1px);
+}
+
+.btn-craft:active {
+  transform: translateY(0);
+}
+
+.t20-loja-craft-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.t20-loja-craft-dialog .craft-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.t20-loja-craft-dialog label {
+  font-size: 0.85rem;
+}
+
+.t20-loja-craft-dialog input,
+.t20-loja-craft-dialog select {
+  min-width: 140px;
+  padding: 4px 6px;
+}
+
+.t20-loja-craft-dialog .craft-preview {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+}
+
+.t20-loja-upgrade-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.t20-loja-upgrade-dialog .upgrade-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.t20-loja-upgrade-dialog .upgrade-row input[type="number"] {
+  width: 70px;
+}
+
+.t20-loja-upgrade-dialog .upgrade-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+}
+
 .btn-sell {
   padding: 4px 6px;
+  width: 60%;
   background: linear-gradient(135deg, #5a3e00, #8b6914);
   border: 1px solid #c8a030;
   color: #fff8e7;

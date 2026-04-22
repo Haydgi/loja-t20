@@ -48,6 +48,9 @@ const EQUIPMENT_USAGE = ['equipado2.hand', 'equipado2.body', 'equipado2.both'];
 
 const CONSUMABLE_TYPES = ['ammo', 'scroll', 'alchemy', 'potion', 'material', 'food'];
 
+const UPGRADE_COSTS = [300, 3000, 9000, 18000];
+const ENCHANT_COSTS = [18000, 36000, 72000];
+
 function typeLabel(type) {
   return TYPE_LABELS[type] ?? type ?? 'Item';
 }
@@ -271,7 +274,7 @@ export class ShopApplication extends Application {
       id        : `t20-loja-${foundry.utils.randomID(4)}`,
       title     : 'Loja',
       template: `modules/loja-t20/templates/shop.hbs`,
-      width     : 780,
+  width     : 900,
       height    : 620,
       resizable : true,
       classes   : ['t20-loja-window'],
@@ -496,6 +499,99 @@ export class ShopApplication extends Application {
             ev.currentTarget.value = clamped;
             preview.text(precoDisplay(unitPrice * clamped * percent));
           });
+        },
+      });
+
+      dialog.render(true);
+    });
+  }
+
+  async _promptCraft({ title, unitPrice }) {
+    return new Promise(resolve => {
+      const fractions = [
+        { label: '1/2', value: 1 / 2 },
+        { label: '1/3', value: 1 / 3 },
+        { label: '1/4', value: 1 / 4 },
+        { label: '1/5', value: 1 / 5 },
+      ];
+      const defaultFraction = 1 / 3;
+      const formatCraftCost = costCopper => {
+        if (costCopper <= 0) return 'Grátis';
+        if (costCopper < 10) return `${costCopper} TC`;
+        return precoDisplay(costCopper / 10);
+      };
+      const dialog = new Dialog({
+        title,
+        content: `
+          <div class="t20-loja-craft-dialog">
+            <div class="craft-row">
+              <label>Fração do preço</label>
+              <select name="fraction" class="craft-fraction">
+                ${fractions
+                  .map(option => {
+                    const selected = option.value === defaultFraction ? 'selected' : '';
+                    return `<option value="${option.value}" ${selected}>${option.label}</option>`;
+                  })
+                  .join('')}
+              </select>
+            </div>
+            <div class="craft-row">
+              <label>Quantidade</label>
+              <input type="number" name="qty" min="1" max="999" value="1" />
+            </div>
+            <div class="craft-row">
+              <label>Desconto por matéria prima (TP)</label>
+              <input type="number" name="materialDiscount" min="0" step="0.1" value="0" />
+            </div>
+            <div class="craft-preview">
+              <div><strong>Custo por item:</strong> <span class="craft-unit-cost">${formatCraftCost(Math.max(1, Math.floor(unitPrice * defaultFraction * 10)))}</span></div>
+              <div><strong>Total estimado:</strong> <span class="craft-total-cost">${formatCraftCost(Math.max(1, Math.floor(unitPrice * defaultFraction * 10)))}</span></div>
+            </div>
+          </div>
+        `,
+        buttons: {
+          confirm: {
+            icon: '<i class="fas fa-hammer"></i>',
+            label: 'Construir',
+            callback: html => {
+              const qtyInput = html.find('input[name="qty"]');
+              const fractionInput = html.find('select[name="fraction"]');
+              const discountInput = html.find('input[name="materialDiscount"]');
+              const qty = Math.min(999, Math.max(1, Number(qtyInput.val()) || 1));
+              const fraction = Number(fractionInput.val()) || defaultFraction;
+              const materialDiscount = Math.max(0, Number(discountInput.val()) || 0);
+              const fractionLabel = fractionInput.find('option:selected').text() || '1/3';
+              resolve({ qty, fraction, fractionLabel, materialDiscount });
+            },
+          },
+          cancel: {
+            icon: '<i class="fas fa-times"></i>',
+            label: 'Cancelar',
+            callback: () => resolve(null),
+          },
+        },
+        default: 'confirm',
+        close: () => resolve(null),
+        render: html => {
+          const qtyInput = html.find('input[name="qty"]');
+          const fractionInput = html.find('select[name="fraction"]');
+          const discountInput = html.find('input[name="materialDiscount"]');
+          const unitCostEl = html.find('.craft-unit-cost');
+          const totalCostEl = html.find('.craft-total-cost');
+          const updatePreview = () => {
+            const qty = Math.min(999, Math.max(1, Number(qtyInput.val()) || 1));
+            const fraction = Number(fractionInput.val()) || defaultFraction;
+            const materialDiscount = Math.max(0, Number(discountInput.val()) || 0);
+            const unitCostCopper = Math.max(1, Math.floor(unitPrice * fraction * 10));
+            const totalCostCopper = Math.max(0, (unitCostCopper * qty) - Math.round(materialDiscount * 10));
+            qtyInput.val(qty);
+            discountInput.val(materialDiscount);
+            unitCostEl.text(formatCraftCost(unitCostCopper));
+            totalCostEl.text(formatCraftCost(totalCostCopper));
+          };
+          qtyInput.on('input', updatePreview);
+          fractionInput.on('change', updatePreview);
+          discountInput.on('input', updatePreview);
         },
       });
 
@@ -742,6 +838,389 @@ export class ShopApplication extends Application {
     this._openCart();
   }
 
+  async _craftItem(uuid) {
+    const shopItem = this._allItems.find(i => i.uuid === uuid);
+    if (!shopItem) return ui.notifications.error('Item não encontrado na loja.');
+
+    const formatCraftCost = costCopper => {
+      if (costCopper <= 0) return 'Grátis';
+      if (costCopper < 10) return `${costCopper} TC`;
+      return precoDisplay(costCopper / 10);
+    };
+
+    const craftData = await this._promptCraft({
+      title: `Construir ${shopItem.name}`,
+      unitPrice: shopItem.preco,
+    });
+    if (!craftData) return;
+
+    const { qty, fraction, fractionLabel, materialDiscount } = craftData;
+  const unitCostCopper = Math.max(1, Math.floor(shopItem.preco * fraction * 10));
+  const totalCostCopper = Math.max(0, (unitCostCopper * qty) - Math.round(materialDiscount * 10));
+
+    const wealth = this._wealthInfo();
+    const totalCopper = toCobre(wealth.to, wealth.tp, wealth.tc);
+  const costCopper = totalCostCopper;
+
+    if (totalCopper < costCopper) {
+      return ui.notifications.warn(
+        `${this.actor.name} não tem moedas suficientes para construir "${shopItem.name}"!`
+      );
+    }
+
+    const remaining = totalCopper - costCopper;
+    const { to: newTo, tp: newTp, tc: newTc } = fromCobre(remaining);
+
+    let sourceDoc;
+    try {
+      sourceDoc = await fromUuid(uuid);
+    } catch (e) {
+      return ui.notifications.error(`Não foi possível carregar o item: ${uuid}`);
+    }
+
+    if (!sourceDoc) return ui.notifications.error('Item não encontrado no compêndio.');
+
+    const existing = this.actor.items.find(i => {
+      const flag = i.getFlag(MODULE_ID, 'sourceUuid');
+      return flag === uuid || i.name === sourceDoc.name;
+    });
+
+    if (existing && existing.system?.qtd !== undefined) {
+      await existing.update({ 'system.qtd': (existing.system.qtd || 1) + qty });
+    } else {
+      const itemData = sourceDoc.toObject();
+      itemData.system.qtd = qty;
+      const [created] = await this.actor.createEmbeddedDocuments('Item', [itemData]);
+      if (created) await created.setFlag(MODULE_ID, 'sourceUuid', uuid);
+    }
+
+    await this.actor.update({
+      'system.dinheiro.to': newTo,
+      'system.dinheiro.tp': newTp,
+      'system.dinheiro.tc': newTc,
+    });
+
+    const messageContent = `
+      <div class="t20-loja-message">
+        <p><strong>${this.actor.name}</strong> construiu:</p>
+        <ul>
+          <li><strong>Item:</strong> ${shopItem.name}</li>
+          <li><strong>Quantidade:</strong> ${qty}</li>
+          <li><strong>Fração do preço:</strong> ${fractionLabel}</li>
+          <li><strong>Custo por item:</strong> ${formatCraftCost(unitCostCopper)}</li>
+          <li><strong>Desconto matéria prima:</strong> ${formatCraftCost(Math.round(materialDiscount * 10))}</li>
+          <li><strong>Total pago:</strong> ${formatCraftCost(totalCostCopper)}</li>
+          <li><strong>Saldo final:</strong> ${newTo} TO | ${newTp} TP | ${newTc} TC</li>
+        </ul>
+      </div>
+    `;
+
+    if (game.settings.get(MODULE_ID, 'enableChatMessages')) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+        content: messageContent,
+        whisper: getChatRecipients(),
+      });
+    }
+
+    this.render();
+  }
+
+  async _promptUpgrade() {
+    return new Promise(resolve => {
+      const fractions = [
+        { label: '1/2', value: 1 / 2 },
+        { label: '1/3', value: 1 / 3 },
+        { label: '1/4', value: 1 / 4 },
+        { label: '1/5', value: 1 / 5 },
+      ];
+      const defaultFraction = 1 / 3;
+      const formatCost = costCopper => {
+        if (costCopper <= 0) return 'Grátis';
+        if (costCopper < 10) return `${costCopper} TC`;
+        return precoDisplay(costCopper / 10);
+      };
+      const totalCost = (level, costs) => {
+        if (level <= 0) return 0;
+        return costs[level - 1] ?? 0;
+      };
+
+      const dialog = new Dialog({
+        title: 'Aprimoramentos e Encantos',
+        content: `
+          <div class="t20-loja-upgrade-dialog">
+            <div class="upgrade-row">
+              <label>Item (opcional)</label>
+              <input type="text" name="itemName" placeholder="Nome do item" />
+            </div>
+            <div class="upgrade-row">
+              <label>Melhorias atuais</label>
+              <input type="number" name="currentUpgrades" min="0" max="${UPGRADE_COSTS.length}" value="0" />
+              <label>Adicionar</label>
+              <input type="number" name="addUpgrades" min="0" max="${UPGRADE_COSTS.length}" value="0" />
+            </div>
+            <div class="upgrade-row">
+              <label>Encantos atuais</label>
+              <input type="number" name="currentEnchants" min="0" max="${ENCHANT_COSTS.length}" value="0" />
+              <label>Adicionar</label>
+              <input type="number" name="addEnchants" min="0" max="${ENCHANT_COSTS.length}" value="0" />
+            </div>
+            <div class="upgrade-row">
+              <label>Material especial (TP)</label>
+              <input type="number" name="extraCost" min="0" step="0.1" value="0" />
+            </div>
+            <div class="upgrade-row">
+              <label>Forma</label>
+              <select name="mode">
+                <option value="buy" selected>Comprar</option>
+                <option value="craft">Fabricar</option>
+              </select>
+            </div>
+            <div class="upgrade-mode upgrade-mode-buy">
+              <div class="upgrade-row">
+                <label>Valor</label>
+                <input type="range" class="upgrade-buy-range" min="1" max="200" step="1" value="100" />
+                <input type="number" class="upgrade-buy-input" min="1" max="200" step="1" value="100" />
+                <span>%</span>
+              </div>
+            </div>
+            <div class="upgrade-mode upgrade-mode-craft" style="display:none;">
+              <div class="upgrade-row">
+                <label>Fração do preço</label>
+                <select class="upgrade-craft-fraction">
+                  ${fractions
+                    .map(option => {
+                      const selected = option.value === defaultFraction ? 'selected' : '';
+                      return `<option value="${option.value}" ${selected}>${option.label}</option>`;
+                    })
+                    .join('')}
+                </select>
+              </div>
+              <div class="upgrade-row">
+                <label>Desconto matéria prima (TP)</label>
+                <input type="number" class="upgrade-craft-discount" min="0" step="0.1" value="0" />
+              </div>
+            </div>
+            <div class="upgrade-preview">
+              <div><strong>Custo base:</strong> <span class="upgrade-base-cost">${formatCost(0)}</span></div>
+              <div><strong>Total estimado:</strong> <span class="upgrade-total-cost">${formatCost(0)}</span></div>
+            </div>
+          </div>
+        `,
+        buttons: {
+          confirm: {
+            icon: '<i class="fas fa-arrow-up"></i>',
+            label: 'Aplicar',
+            callback: html => {
+              const itemName = (html.find('input[name="itemName"]').val() || '').trim();
+              const currentUpgrades = Number(html.find('input[name="currentUpgrades"]').val()) || 0;
+              const addUpgrades = Number(html.find('input[name="addUpgrades"]').val()) || 0;
+              const currentEnchants = Number(html.find('input[name="currentEnchants"]').val()) || 0;
+              const addEnchants = Number(html.find('input[name="addEnchants"]').val()) || 0;
+              const extraCost = Math.max(0, Number(html.find('input[name="extraCost"]').val()) || 0);
+              const mode = html.find('select[name="mode"]').val() || 'buy';
+              const buyPercent = Math.min(200, Math.max(1, Number(html.find('.upgrade-buy-input').val()) || 100));
+              const craftFraction = Number(html.find('.upgrade-craft-fraction').val()) || defaultFraction;
+              const craftDiscount = Math.max(0, Number(html.find('.upgrade-craft-discount').val()) || 0);
+              resolve({
+                itemName,
+                currentUpgrades,
+                addUpgrades,
+                currentEnchants,
+                addEnchants,
+                extraCost,
+                mode,
+                buyPercent,
+                craftFraction,
+                craftDiscount,
+              });
+            },
+          },
+          cancel: {
+            icon: '<i class="fas fa-times"></i>',
+            label: 'Cancelar',
+            callback: () => resolve(null),
+          },
+        },
+        default: 'confirm',
+        close: () => resolve(null),
+        render: html => {
+          const currentUpgradesEl = html.find('input[name="currentUpgrades"]');
+          const addUpgradesEl = html.find('input[name="addUpgrades"]');
+          const currentEnchantsEl = html.find('input[name="currentEnchants"]');
+          const addEnchantsEl = html.find('input[name="addEnchants"]');
+          const extraCostEl = html.find('input[name="extraCost"]');
+          const modeEl = html.find('select[name="mode"]');
+          const buyRangeEl = html.find('.upgrade-buy-range');
+          const buyInputEl = html.find('.upgrade-buy-input');
+          const craftFractionEl = html.find('.upgrade-craft-fraction');
+          const craftDiscountEl = html.find('.upgrade-craft-discount');
+          const baseCostEl = html.find('.upgrade-base-cost');
+          const totalCostEl = html.find('.upgrade-total-cost');
+
+          const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+          const updatePreview = () => {
+            const currentUpgrades = clamp(Number(currentUpgradesEl.val()) || 0, 0, UPGRADE_COSTS.length);
+            const currentEnchants = clamp(Number(currentEnchantsEl.val()) || 0, 0, ENCHANT_COSTS.length);
+            const addUpgrades = clamp(Number(addUpgradesEl.val()) || 0, 0, UPGRADE_COSTS.length - currentUpgrades);
+            const addEnchants = clamp(Number(addEnchantsEl.val()) || 0, 0, ENCHANT_COSTS.length - currentEnchants);
+            const extraCost = Math.max(0, Number(extraCostEl.val()) || 0);
+
+            currentUpgradesEl.val(currentUpgrades);
+            currentEnchantsEl.val(currentEnchants);
+            addUpgradesEl.val(addUpgrades);
+            addEnchantsEl.val(addEnchants);
+            extraCostEl.val(extraCost);
+
+            const targetUpgrades = currentUpgrades + addUpgrades;
+            const targetEnchants = currentEnchants + addEnchants;
+            const upgradesCost = totalCost(targetUpgrades, UPGRADE_COSTS) - totalCost(currentUpgrades, UPGRADE_COSTS);
+            const enchantsCost = totalCost(targetEnchants, ENCHANT_COSTS) - totalCost(currentEnchants, ENCHANT_COSTS);
+            const baseCostCopper = Math.max(0, Math.round((upgradesCost + enchantsCost + extraCost) * 10));
+
+            const mode = modeEl.val();
+            const buyPercent = clamp(Number(buyInputEl.val()) || 100, 1, 200);
+            const craftFraction = Number(craftFractionEl.val()) || defaultFraction;
+            const craftDiscount = Math.max(0, Number(craftDiscountEl.val()) || 0);
+
+            buyInputEl.val(buyPercent);
+            buyRangeEl.val(buyPercent);
+            craftDiscountEl.val(craftDiscount);
+
+            let totalCostCopper = baseCostCopper;
+            if (mode === 'buy') {
+              totalCostCopper = Math.round(baseCostCopper * (buyPercent / 100));
+            } else {
+              totalCostCopper = Math.max(0, Math.floor(baseCostCopper * craftFraction) - Math.round(craftDiscount * 10));
+            }
+
+            baseCostEl.text(formatCost(baseCostCopper));
+            totalCostEl.text(formatCost(totalCostCopper));
+          };
+
+          const toggleMode = () => {
+            const mode = modeEl.val();
+            html.find('.upgrade-mode-buy').toggle(mode === 'buy');
+            html.find('.upgrade-mode-craft').toggle(mode === 'craft');
+            updatePreview();
+          };
+
+          currentUpgradesEl.on('input', updatePreview);
+          addUpgradesEl.on('input', updatePreview);
+          currentEnchantsEl.on('input', updatePreview);
+          addEnchantsEl.on('input', updatePreview);
+          extraCostEl.on('input', updatePreview);
+          buyRangeEl.on('input', ev => {
+            buyInputEl.val(ev.currentTarget.value);
+            updatePreview();
+          });
+          buyInputEl.on('input', updatePreview);
+          craftFractionEl.on('change', updatePreview);
+          craftDiscountEl.on('input', updatePreview);
+          modeEl.on('change', toggleMode);
+
+          toggleMode();
+        },
+      });
+
+      dialog.render(true);
+    });
+  }
+
+  async _openUpgradeDialog() {
+    const data = await this._promptUpgrade();
+    if (!data) return;
+
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const currentUpgrades = clamp(data.currentUpgrades, 0, UPGRADE_COSTS.length);
+    const currentEnchants = clamp(data.currentEnchants, 0, ENCHANT_COSTS.length);
+    const addUpgrades = clamp(data.addUpgrades, 0, UPGRADE_COSTS.length - currentUpgrades);
+    const addEnchants = clamp(data.addEnchants, 0, ENCHANT_COSTS.length - currentEnchants);
+    const extraCost = Math.max(0, data.extraCost || 0);
+
+    if (addUpgrades + addEnchants === 0 && extraCost === 0) {
+      return ui.notifications.warn('Selecione pelo menos uma melhoria, encanto ou custo adicional.');
+    }
+
+    const totalCost = (level, costs) => {
+      if (level <= 0) return 0;
+      return costs[level - 1] ?? 0;
+    };
+
+    const targetUpgrades = currentUpgrades + addUpgrades;
+    const targetEnchants = currentEnchants + addEnchants;
+    const upgradesCost = totalCost(targetUpgrades, UPGRADE_COSTS) - totalCost(currentUpgrades, UPGRADE_COSTS);
+    const enchantsCost = totalCost(targetEnchants, ENCHANT_COSTS) - totalCost(currentEnchants, ENCHANT_COSTS);
+    const baseCostCopper = Math.max(0, Math.round((upgradesCost + enchantsCost + extraCost) * 10));
+
+    let totalCostCopper = baseCostCopper;
+    let buyPercent = 100;
+    let craftFraction = data.craftFraction ?? 1 / 3;
+    let craftDiscount = data.craftDiscount ?? 0;
+
+    if (data.mode === 'buy') {
+      buyPercent = clamp(data.buyPercent ?? 100, 1, 200);
+      totalCostCopper = Math.round(baseCostCopper * (buyPercent / 100));
+    } else {
+      craftFraction = data.craftFraction ?? 1 / 3;
+      craftDiscount = Math.max(0, data.craftDiscount ?? 0);
+      totalCostCopper = Math.max(0, Math.floor(baseCostCopper * craftFraction) - Math.round(craftDiscount * 10));
+    }
+
+    const wealth = this._wealthInfo();
+    const totalCopper = toCobre(wealth.to, wealth.tp, wealth.tc);
+    if (totalCopper < totalCostCopper) {
+      return ui.notifications.warn('Moedas insuficientes para aplicar aprimoramentos.');
+    }
+
+    const remaining = totalCopper - totalCostCopper;
+    const { to: newTo, tp: newTp, tc: newTc } = fromCobre(remaining);
+
+    await this.actor.update({
+      'system.dinheiro.to': newTo,
+      'system.dinheiro.tp': newTp,
+      'system.dinheiro.tc': newTc,
+    });
+
+    const formatCost = costCopper => {
+      if (costCopper <= 0) return 'Grátis';
+      if (costCopper < 10) return `${costCopper} TC`;
+      return precoDisplay(costCopper / 10);
+    };
+
+    const itemName = data.itemName || 'Item';
+    const messageContent = `
+      <div class="t20-loja-message">
+        <p><strong>${this.actor.name}</strong> aplicou aprimoramentos:</p>
+        <ul>
+          <li><strong>Item:</strong> ${itemName}</li>
+          <li><strong>Melhorias:</strong> +${addUpgrades} (já tinha ${currentUpgrades})</li>
+          <li><strong>Encantos:</strong> +${addEnchants} (já tinha ${currentEnchants})</li>
+          <li><strong>Custo base:</strong> ${formatCost(baseCostCopper)}</li>
+          ${extraCost > 0 ? `<li><strong>Material especial:</strong> ${formatCost(Math.round(extraCost * 10))}</li>` : ''}
+          ${data.mode === 'buy'
+            ? `<li><strong>Compra:</strong> ${buyPercent}%</li>`
+            : `<li><strong>Fabricação:</strong> ${Math.round((craftFraction) * 100)}% | ${craftDiscount > 0
+                ? `Desconto ${formatCost(Math.round(craftDiscount * 10))}`
+                : 'Sem desconto'}</li>`}
+          <li><strong>Total pago:</strong> ${formatCost(totalCostCopper)}</li>
+          <li><strong>Saldo final:</strong> ${newTo} TO | ${newTp} TP | ${newTc} TC</li>
+        </ul>
+      </div>
+    `;
+
+    if (game.settings.get(MODULE_ID, 'enableChatMessages')) {
+      await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+        content: messageContent,
+        whisper: getChatRecipients(),
+      });
+    }
+
+    this.render();
+  }
+
   _openCart() {
     if (!this._cartApp || this._cartApp._closed) {
       this._cartApp = new CartApplication(this);
@@ -799,6 +1278,12 @@ export class ShopApplication extends Application {
     html.find('.btn-cart').on('click', ev => {
       const uuid = ev.currentTarget.dataset.uuid;
       this._addToCart(uuid);
+    });
+
+    // Botão Construir
+    html.find('.btn-craft').on('click', ev => {
+      const uuid = ev.currentTarget.dataset.uuid;
+      this._craftItem(uuid);
     });
 
     // Botão Vender
@@ -895,6 +1380,10 @@ export class ShopApplication extends Application {
 
     html.find('.btn-open-cart').on('click', () => {
       this._openCart();
+    });
+
+    html.find('.btn-open-upgrade').on('click', () => {
+      this._openUpgradeDialog();
     });
 
     html.find('.side-filter-group').on('toggle', ev => {

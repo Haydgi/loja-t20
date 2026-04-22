@@ -8,6 +8,9 @@
     <span class="wealth-coin silver">{{wealth.tp}} <abbr title="Tibar de Prata">TP</abbr></span>
     <span class="wealth-coin copper">{{wealth.tc}} <abbr title="Tibar de Cobre">TC</abbr></span>
     <span class="wealth-total">(= {{wealth.totalSilver}} TP total)</span>
+    <button type="button" class="btn-open-upgrade" title="Aprimoramentos">
+      <i class="fas fa-arrow-up"></i>
+    </button>
     <button type="button" class="btn-open-cart" title="Abrir carrinho">
       <i class="fas fa-shopping-cart"></i>
     </button>
@@ -249,6 +252,9 @@
                   </button>
                   <button class="btn-cart" data-uuid="{{uuid}}" title="Adicionar ao carrinho">
                     <i class="fas fa-cart-plus"></i>
+                  </button>
+                  <button class="btn-craft" data-uuid="{{uuid}}" title="Construir {{name}}">
+                    <i class="fas fa-hammer"></i>
                   </button>
                 </div>
               {{/if}}
